@@ -6,8 +6,9 @@ things a legislature could actually vote for, sized against CBO's own scores
 so the arithmetic of what it takes is concrete rather than rhetorical.
 
 The central fact it exists to make visible: the largest single option CBO
-scores is worth about 0.9% of GDP a year. Stabilising needs roughly two and a
-half of those, simultaneously and permanently.
+scores is worth about 0.9% of GDP a year. Holding debt at today's 101% of GDP
+through 2050 -- a 2.5-point swing phased in over six years, net of its growth
+cost -- needs nearly three of those, simultaneously and permanently.
 """
 
 from __future__ import annotations

@@ -271,8 +271,9 @@ about −0.4% of GDP, against −2.5% today: a 2.1pp adjustment, rising to about
 **What the adjustment means.** `policy_options.py` sizes that against CBO's own
 scored options. The largest single option, eliminating all itemised
 deductions, is worth about 0.9% of GDP a year. The 2.1pp adjustment is 2.3 of
-those, and the 2.8pp consolidation scenario is about 3, enacted together and
-kept permanently.
+those. Phased in over six years and net of its growth cost
+(`primary_balance.required_for_target(1.01)`), the swing grows to 2.5pp, nearly
+three options, all enacted together and kept permanently.
 `primary_balance.py` varies consolidations by size, speed, delay and
 durability, and charges a multiplier and hysteresis for the growth they cost.
 
