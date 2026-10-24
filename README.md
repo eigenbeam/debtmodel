@@ -2,7 +2,9 @@
 
 A discrete-time model of the US public debt burden and how much of it inflation
 can erode, implementing Hilscher, Raviv & Reis, *"Inflating Away the Public
-Debt? An Empirical Assessment"* (NBER WP 20339, 2014).
+Debt? An Empirical Assessment"* (NBER WP 20339, 2014), plus a debt/GDP
+projection layer that asks the follow-up question: if inflation will not do it,
+what will?
 
 ## The model
 
@@ -50,7 +52,8 @@ is frozen — the 2026 set adds to it and changes nothing in it.
 uv sync
 uv run python examples/replicate_hrr.py       # reproduce the paper's tables (2012)
 uv run python examples/compare_2012_2026.py   # the two dates side by side
-uv run --extra dev pytest                     # 45 tests against published numbers
+uv run python examples/run_scenarios.py       # debt/GDP projections to 2050
+uv run --extra dev pytest                     # 116 tests
 ```
 
 ```python
@@ -217,6 +220,83 @@ option-implied inflation, and matching the observed TIPS curve was a genuine
 out-of-sample check. In 2026 both curves are observed and breakevens are defined
 as their ratio, so the corresponding test is a round-trip and is labelled as one.
 
+## Projections to 2050
+
+The debasement model prices a one-time revaluation of the existing stock. It
+says nothing about where the debt ratio goes next, so a second layer projects
+debt held by the public forward from September 2026.
+
+**Mechanics.** `fiscal.py` runs the usual `Δb = (r − g)·b − s` accounting but
+carries a maturity ladder: each year the maturing slice is refinanced at the
+market rate and the rest keeps its old coupon. The passthrough from market rates
+to the interest bill is therefore an output, set by the real ladder (from the
+same MSPD data as the 2026 calibration), not an assumption. Everything is
+nominal, so inflation raises GDP and new-issue coupons at once — which is why
+anticipated inflation turns out nearly neutral.
+
+**Anchor.** `fiscal_calibration.baseline()` is fitted to CBO's February 2026
+baseline so that "nothing changes" means something checkable:
+
+| 2036 | Model | CBO |
+|---|---|---|
+| Debt held by the public | 119% GDP | 120% |
+| Total deficit | 6.9% | 6.7% |
+| Net interest | 4.6% | 4.6% |
+
+The primary-deficit path and the real short-rate path are the two fitted
+inputs. The ladder, GDP and starting debt are data.
+
+**Scenarios.** `scenarios.py` changes the baseline one lever at a time
+(`examples/run_scenarios.py` prints the full table). Debt/GDP in 2050, against a
+baseline of 145%:
+
+| Lever | 2050 | vs base |
+|---|---|---|
+| Fiscal expansion, +1.5% GDP | 176% | +31pp |
+| Growth disappoints, 1.0% | 170% | +25pp |
+| Term premium +100bp | 169% | +24pp |
+| Inflation +2pp, anticipated | 140% | −5pp |
+| Inflation +1pp, one-off surprise | 143% | −2pp |
+| Financial repression, −175bp | 115% | −30pp |
+| Productivity boom, 3.1% growth | 115% | −30pp |
+| Primary balance to +0.3% (a 2.8pp swing) | 95% | −51pp, stable |
+| Postwar playbook (combined) | 73% | −73pp, stable |
+
+Inflation barely moves the trajectory, consistent with the debasement result.
+Only the primary balance, alone or combined with other levers, stabilises the
+ratio. Holding debt flat under baseline conditions needs a primary balance of
+about −0.4% of GDP, against −2.5% today: a 2.1pp adjustment, rising to about
+3pp if real rates are 100bp higher or growth is 1.0%.
+
+**What the adjustment means.** `policy_options.py` sizes that against CBO's own
+scored options. The largest single option, eliminating all itemised
+deductions, is worth about 0.9% of GDP a year. The 2.1pp adjustment is 2.3 of
+those, and the 2.8pp consolidation scenario is about 3, enacted together and
+kept permanently.
+`primary_balance.py` varies consolidations by size, speed, delay and
+durability, and charges a multiplier and hysteresis for the growth they cost.
+
+**Uncertainty.** `stochastic.py` adds correlated AR(1) shocks to growth,
+inflation and the real rate, plus a discrete recession regime, and treats every
+shock as unanticipated. The distribution is right-skewed: the median path ends
+above the deterministic one.
+
+| 2050, 2000 draws | Central | Median | 5–95% | P(≤100% GDP) |
+|---|---|---|---|---|
+| Baseline | 145% | 166% | 138–203% | 0% |
+| 2.8pp consolidation | 95% | 113% | 88–144% | 22% |
+
+A consolidation that stabilises the debt in the central case ends below 100% of
+GDP in only about one draw in five.
+
+The projection layer is less firmly sourced than the debasement layer. Only
+the baseline is fitted to an external target. Shock volatilities and
+persistence are set to round numbers consistent with postwar US experience, the
+multiplier (0.6) is picked from the 0.5–0.8 empirical range, and the hysteresis
+share (0.5) is an assumption with no source. None of these is estimated. The
+scenario sizes are recognisable policy events, not forecasts. Trust the
+direction and rough size of these numbers, not the decimals.
+
 ## Structure
 
 ```
@@ -226,6 +306,16 @@ src/debtmodel/
   burden.py             DebasementModel — ω_t, valuation, counterfactuals, repression
   calibration.py        US 2012 inputs and the paper's published targets
   calibration_2026.py   US September 2026 inputs
+  fiscal.py             DebtLadder, project — debt/GDP dynamics with refinancing
+  fiscal_calibration.py September 2026 starting point, CBO-anchored baseline
+  scenarios.py          The scenario set, grouped by effect on the trajectory
+  primary_balance.py    Consolidation size, speed, delay, durability; growth cost
+  policy_options.py     CBO-scored revenue and spending options, as % of GDP
+  stochastic.py         Monte Carlo fan charts around any scenario
+examples/
+  replicate_hrr.py      The paper's tables, side by side
+  compare_2012_2026.py  Both calibrations through the same model
+  run_scenarios.py      Every projection scenario
 scripts/
   build_2026_profile.py Regenerates the 2026 payment profile from Treasury/NY Fed APIs
 ```
